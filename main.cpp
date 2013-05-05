@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #ifdef _WIN32
 #include <process.h>
-#else
+#else+
 #include <unistd.h>
 extern char ** environ;
 #endif
@@ -74,16 +74,25 @@ static long gstdin(FCGX_Request * request, char ** content)
     return clen;
 }
 
-const char* runjs(char* script_filename) {
+v8::Handle<v8::Value> LogCallback(const v8::Arguments &args) {
+    v8::String::AsciiValue ascii(args[0]);
+
+    std::string s (*ascii);
+    cout << s.c_str();
+}
+
+void runjs(char* script_filename) {
   // Get the default Isolate created at startup.
   Isolate* isolate = Isolate::GetCurrent();
 
   // Create a stack-allocated handle scope.
   HandleScope handle_scope(isolate);
 
+  Handle<ObjectTemplate> global = ObjectTemplate::New();
+  global->Set(String::New("out"), FunctionTemplate::New(LogCallback));
+
   // Create a new context.
-  Persistent<Context> context = Context::New();
-  
+  Persistent<Context> context = Context::New(NULL, global);
   // Enter the created context for compiling and
   // running the hello world script. 
   Context::Scope context_scope(context);
@@ -107,9 +116,9 @@ const char* runjs(char* script_filename) {
   // Convert the result to an ASCII string and print it.
   String::AsciiValue ascii(result);
 
-  std::string s (*ascii);
+  //std::string s (*ascii);
 
-  return s.c_str();
+  //return s.c_str();
 }
 
 int main (void)
@@ -128,9 +137,6 @@ int main (void)
 
     while (FCGX_Accept_r(&request) == 0)
     {
-        // Note that the default bufsize (0) will cause the use of iostream
-        // methods that require positioning (such as peek(), seek(),
-        // unget() and putback()) to fail (in favour of more efficient IO).
         fcgi_streambuf cin_fcgi_streambuf(request.in);
         fcgi_streambuf cout_fcgi_streambuf(request.out);
         fcgi_streambuf cerr_fcgi_streambuf(request.err);
@@ -145,9 +151,7 @@ int main (void)
         cerr.rdbuf(&cerr_fcgi_streambuf);
 #endif
 
-        // Although FastCGI supports writing before reading,
-        // many http clients (browsers) don't support it (so
-        // the connection deadlocks until a timeout expires!).
+
         char * content;
         unsigned long clen = gstdin(&request, &content);
 
@@ -157,26 +161,13 @@ int main (void)
 
 
         char* script_filename = FCGX_GetParam("SCRIPT_FILENAME", request.envp);
-        cout <<  runjs(script_filename);
+        
+        runjs(script_filename);
 
-        //cout << "<H4>Request Environment</H4>\n";
-        //penv(request.envp);
-
-        ////cout << "<H4>Process/Initial Environment</H4>\n";
-        //penv(environ);
-
-        //cout << "<H4>Standard Input - " << clen;
-        //if (clen == STDIN_MAX) cout << " (STDIN_MAX)";
-        //cout << " bytes</H4>\n";
         
         if (clen) cout.write(content, clen);
 
         if (content) delete []content;
-
-        // If the output streambufs had non-zero bufsizes and
-        // were constructed outside of the accept loop (i.e.
-        // their destructor won't be called here), they would
-        // have to be flushed here.
     }
 
 #if HAVE_IOSTREAM_WITHASSIGN_STREAMBUF
