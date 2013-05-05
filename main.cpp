@@ -74,7 +74,7 @@ static long gstdin(FCGX_Request * request, char ** content)
     return clen;
 }
 
-const char* runjs() {
+const char* runjs(char* script_filename) {
   // Get the default Isolate created at startup.
   Isolate* isolate = Isolate::GetCurrent();
 
@@ -88,7 +88,7 @@ const char* runjs() {
   // running the hello world script. 
   Context::Scope context_scope(context);
 
-  std::ifstream t("/var/www/code.js");
+  std::ifstream t(script_filename);
   std::stringstream codeBuffer;
   codeBuffer << t.rdbuf();
 
@@ -126,10 +126,6 @@ int main (void)
     FCGX_Init();
     FCGX_InitRequest(&request, 0, 0);
 
-    const char* js = runjs();
-
-    cout << "this is js: " << js << "\n";
-
     while (FCGX_Accept_r(&request) == 0)
     {
         // Note that the default bufsize (0) will cause the use of iostream
@@ -156,23 +152,23 @@ int main (void)
         unsigned long clen = gstdin(&request, &content);
 
         cout << "Content-type: text/html\r\n"
-                "\r\n"
-                "<TITLE>echo-cpp</TITLE>\n"
-                "<H1>echo-cpp</H1>\n"
-                "<H4>PID: " << pid << "</H4>\n"
-                "<H4>Request Number: " << ++count << "</H4>\n";
+                "\r\n";
+                
 
-        cout << "YAY" << runjs();
 
-        cout << "<H4>Request Environment</H4>\n";
-        penv(request.envp);
+        char* script_filename = FCGX_GetParam("SCRIPT_FILENAME", request.envp);
+        cout <<  runjs(script_filename);
 
-        cout << "<H4>Process/Initial Environment</H4>\n";
-        penv(environ);
+        //cout << "<H4>Request Environment</H4>\n";
+        //penv(request.envp);
 
-        cout << "<H4>Standard Input - " << clen;
-        if (clen == STDIN_MAX) cout << " (STDIN_MAX)";
-        cout << " bytes</H4>\n";
+        ////cout << "<H4>Process/Initial Environment</H4>\n";
+        //penv(environ);
+
+        //cout << "<H4>Standard Input - " << clen;
+        //if (clen == STDIN_MAX) cout << " (STDIN_MAX)";
+        //cout << " bytes</H4>\n";
+        
         if (clen) cout.write(content, clen);
 
         if (content) delete []content;
