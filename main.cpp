@@ -16,12 +16,17 @@ extern char ** environ;
 #include "fcgio.h"
 #include "fcgi_config.h"  // HAVE_IOSTREAM_WITHASSIGN_STREAMBUF
 
+#include "modul_point.h"
+
 
 using namespace v8;
 using namespace std;
 
+
 // Maximum number of bytes allowed to be read from stdin
 static const unsigned long STDIN_MAX = 1000000;
+
+Isolate* isolate;
 
 static void penv(const char * const * envp)
 {
@@ -83,13 +88,19 @@ v8::Handle<v8::Value> LogCallback(const v8::Arguments &args) {
 
 void runjs(char* script_filename) {
   // Get the default Isolate created at startup.
-  Isolate* isolate = Isolate::GetCurrent();
+  isolate = Isolate::GetCurrent();
 
   // Create a stack-allocated handle scope.
   HandleScope handle_scope(isolate);
 
   Handle<ObjectTemplate> global = ObjectTemplate::New();
   global->Set(String::New("out"), FunctionTemplate::New(LogCallback));
+
+  Handle<ObjectTemplate> somecls = ObjectTemplate::New();
+  somecls->Set(String::New("somefunc"), FunctionTemplate::New(LogCallback));
+  global->Set(String::New("somecls"), somecls);
+
+  modul_point::addToV8Scope(&global, isolate);
 
   // Create a new context.
   Persistent<Context> context = Context::New(NULL, global);
