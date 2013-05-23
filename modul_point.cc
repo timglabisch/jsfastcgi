@@ -53,8 +53,6 @@ void SetPrototypeMethod(target_t target,
 
 void modul_point::addToV8Scope(Handle<ObjectTemplate>* scope, Isolate* isolate) {
 
-	HandleScope handle_scope(isolate);
-
 	// at first we need the create the main object, we call this javascript class "point"
 	// in javascript there are no real classes, so we create a function.
 	// read more about the function template here: http://fossies.org/dox/node-v0.10.5/classv8_1_1FunctionTemplate.html
